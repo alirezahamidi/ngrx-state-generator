@@ -33,7 +33,7 @@ function run() {
         c => create
         r => read
         u => update
-        d => delet
+        d => delete
         f => facade
 
         sample crf => Create Read and Facade
