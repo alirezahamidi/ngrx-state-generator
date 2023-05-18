@@ -8,12 +8,12 @@ $node index --help
 
 Generate All needed state files and codes to use in angular ngrx project.
 ~~~
-$node indes sample
+$node index sample
 ~~~
 
 If You didn't need to have a method like read you can add next parameter like this :
 ~~~
-$node indes sample cudf
+$node index sample cudf
 ~~~
 
 the parameter will parse to methods like that :
