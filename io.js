@@ -1,6 +1,29 @@
 const fs = require("fs");
 class IO {
   filePath = "";
+  input = "";
+  params = "";
+  create = true;
+  read = true;
+  update = true;
+  delete = true;
+  facade = true;
+
+  upperCaseName = "";
+  lowerCaseName = "";
+  featureKey = "";
+  names = {
+    model: null,
+    actions: null,
+    reducer: null,
+    module: null,
+    effects: null,
+    entity: null,
+    selectors: null,
+    facade: null,
+    service: null,
+  };
+
   help = `
     NGRX State Files Generator : 
         Commands :
@@ -22,23 +45,50 @@ class IO {
         sample crf => Create Read and Facade
         `;
 
-  getParams() {
-    const input = process.argv[2];
-    let params = process.argv[3];
+  init() {
+    this.getParams();
+    this.handleInput();
+    this.upperCaseName = this.startUpperCaseName();
+    this.lowerCaseName = this.startLowerCaseName();
+    this.featureKey = this.getFeatureKey();
 
-    if (!params || params == "") params = "crudf";
-    else params = params.toLowerCase();
+    if (this.handleInput() < 0) return -1;
+    this.initFile();
+
+    Object.getOwnPropertyNames(this.names).forEach((x) => {
+      this.names[x] = {
+        className: `${this.startUpper(this.input)}${
+          x == "module" ? "State" : ""
+        }${this.startUpper(x)}`,
+        fileName: `${this.filePath}.${x.toLowerCase()}`,
+      };
+    });
+    return 1;
+  }
+
+  getParams() {
+    this.input = process.argv[2];
+    this.params = process.argv[3];
+    if (!this.params || this.params == "") this.params = "crudf";
+    else this.params = this.params.toLowerCase();
+
+    this.create = this.params.indexOf("c") >= 0;
+    this.read = this.params.indexOf("r") >= 0;
+    this.update = this.params.indexOf("u") >= 0;
+    this.delete = this.params.indexOf("d") >= 0;
+    this.facade = this.params.indexOf("f") >= 0;
+    this.filePath = `./${this.input}-state`;
+
     const outp = {
-      input,
-      params,
-      create: params.indexOf("c") >= 0,
-      read: params.indexOf("r") >= 0,
-      update: params.indexOf("u") >= 0,
-      delete: params.indexOf("d") >= 0,
-      facade: params.indexOf("f") >= 0,
-      filePath: `${input}-state`,
+      input: this.input,
+      params: this.params,
+      create: this.create,
+      read: this.read,
+      update: this.update,
+      delete: this.delete,
+      facade: this.facade,
+      filePath: this.filePath,
     };
-    this.filePath = `./${outp.filePath}/${outp.input}`;
 
     return outp;
   }
@@ -51,30 +101,20 @@ class IO {
     }
 
     if (input == "--help") {
-      console.log(io.help);
+      console.log(this.help);
       return -1;
     }
     return 1;
   }
 
   initFile() {
-    let isExist = fs.existsSync(params.filePath);
-    if (!isExist) fs.mkdirSync(params.filePath);
+    let isExist = fs.existsSync(this.filePath);
+    if (!isExist) fs.mkdirSync(this.filePath);
   }
 
   startUpperCaseName() {
     const { input } = this.getParams();
-    return input
-      .split("-")
-      .map((x) => {
-        let a = "";
-        for (let i = 0; i < x.length; i++) {
-          if (i == 0) a += x[i].toUpperCase();
-          else a += x[i].toLowerCase();
-        }
-        return a;
-      })
-      .join("");
+    return this.startUpper(input);
   }
 
   startUpper(text) {
@@ -93,17 +133,7 @@ class IO {
 
   startLowerCaseName() {
     const { input } = this.getParams();
-    return input
-      .split("-")
-      .map((x, j) => {
-        let a = "";
-        for (let i = 0; i < x.length; i++) {
-          if (i == 0 && j != 0) a += x[i].toUpperCase();
-          else a += x[i].toLowerCase();
-        }
-        return a;
-      })
-      .join("");
+    return this.startLower(input);
   }
 
   startLower(text) {
@@ -120,7 +150,7 @@ class IO {
       .join("");
   }
 
-  featureKey() {
+  getFeatureKey() {
     const { input } = this.getParams();
     return (
       input
@@ -130,9 +160,9 @@ class IO {
     );
   }
 
-  createFile(data, type) {
-    fs.writeFileSync(`${this.filePath}${type=='module'?'-state':''}.${type.toLowerCase()}.ts`, data);
-    console.log(`${this.startUpper(type)} File Created!`);
+  createFile(data, fileName) {
+    fs.writeFileSync(`${this.filePath}/${fileName}.ts`, data);
+    console.log(`${fileName} File Created!`);
   }
 }
 
