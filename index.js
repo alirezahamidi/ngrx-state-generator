@@ -1,5 +1,6 @@
+#!/usr/bin/env node
 const fs = require('fs');
-function run() {
+ function run() {
   const input = process.argv[2];
   let params = process.argv[3];
 

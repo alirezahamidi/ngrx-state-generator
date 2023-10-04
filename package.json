@@ -1,11 +1,18 @@
 {
   "name": "ngrx-state-generator",
   "version": "1.0.0",
-  "description": "",
+  "description": "A generator for Ngrx State with facade architecture",
   "main": "index.js",
+  "engines": {
+    "node": ">=0.10.0"
+  },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "author": "",
-  "license": "ISC"
+  "bin": {
+    "generate-state": "./index.js"
+  },
+  "author": "alirezahamidi",
+  "preferGlobal": true,
+  "license": "MIT"
 }
