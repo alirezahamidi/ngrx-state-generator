@@ -75,7 +75,7 @@ export interface ${lowerCaseName}State extends EntityState<${io.names.model.clas
 
 export const ${lowerCaseName}Adapter : EntityAdapter<${io.names.model.className}> = createEntityAdapter<${io.names.model.className}>();
 
-export const initialState:  ${lowerCaseName}State = ${lowerCaseName}Adapter.getInitialState({
+export const initialState:  EntityState<${io.names.model.className}> = ${lowerCaseName}Adapter.getInitialState({
     loaded: null,
     message: null,
     statistics: null,
@@ -333,14 +333,14 @@ export class ${io.names.service.className} {
     );
   }
 
-  update(data, id: number): Observable<${io.names.model.className}> {
+  update(data:${io.names.model.className}, id: number): Observable<${io.names.model.className}> {
     return this.http.post<${io.names.model.className}>(
       environment.baseApiUrl + ${"`postPath/${id}/update`"},
       data
     );
   }
 
-  delete(id):Observable<${io.names.model.className}>{
+  delete(id:number):Observable<${io.names.model.className}>{
     return this.http.post<${io.names.model.className}>(
         environment.baseApiUrl + ${"`postPath/${id}/delete`"},{});
   }
