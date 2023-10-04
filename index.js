@@ -1,101 +1,63 @@
 #!/usr/bin/env node
-const fs = require('fs');
- function run() {
-  const input = process.argv[2];
-  let params = process.argv[3];
+const io = require("./io");
+const fs = require("fs");
+function run() {
+  params = io.getParams();
 
-  if (!params || params == '') params = 'crudf';
-  else params = params.toLowerCase();
+  if (io.handleInput() < 0) return;
+  io.initFile();
 
-  const create = params.indexOf('c') >= 0;
-  const read = params.indexOf('r') >= 0;
-  const update = params.indexOf('u') >= 0;
-  const delet = params.indexOf('d') >= 0;
-  const facade = params.indexOf('f') >= 0;
-  const filePath = `${input}-state`;
+  let upperCaseName = io.startUpperCaseName();
+  let lowerCaseName = io.startLowerCaseName();
+  let featureKey = io.featureKey();
 
-  if (!input || input == '') {
-    console.log("Add --help to see help");
-    return;
-  }
-  if (input == "--help") {
-    console.log(`
-        NGRX State Files Generator : 
-        Commands :
+  let model = `export default interface ${upperCaseName}Model {
+    id:number;
+    name:string;
+  }`;
 
-        node index your-file-name:
-        Basic command will make you basic Read State.
-
-        parameters:
-
-        crudf
-        use it when you want to customize state:
-
-        c => create
-        r => read
-        u => update
-        d => delete
-        f => facade
-
-        sample crf => Create Read and Facade
-    `);
-    return;
-  }
-
-  let isExist = fs.existsSync(filePath);
-  if (!isExist) fs.mkdirSync(filePath);
-
-  let upperCaseName = input.split('-').map((x) => {
-    let a = "";
-    for (let i = 0; i < x.length; i++) {
-      if (i == 0)
-        a += x[i].toUpperCase();
-      else
-        a += x[i].toLowerCase();
-    }
-    return a;
-  }).join('');
-
-  let lowerCaseName = input.split('-').map((x, j) => {
-    let a = "";
-    for (let i = 0; i < x.length; i++) {
-      if (i == 0 && j != 0)
-        a += x[i].toUpperCase();
-      else
-        a += x[i].toLowerCase();
-    }
-    return a;
-  }).join('');
-
-  let featureKey = input.split('-').map((x) => x.toUpperCase()).join('_') + "_FEATURE_KEY";
-
+  io.createFile(model, "model");
 
   let actions = `import { createAction, props } from "@ngrx/store";
 
 export class ${upperCaseName}Actions {
-    ${create ? `static addNew${upperCaseName} = createAction('[${upperCaseName}] Add New ${upperCaseName}', props<{ data: any }>());
+    ${
+      params.create
+        ? `static addNew${upperCaseName} = createAction('[${upperCaseName}] Add New ${upperCaseName}', props<{ data: any }>());
 
     static ${lowerCaseName}Added = createAction('[${upperCaseName}] New ${upperCaseName} Added', props<{ data: any }>());
-    ` : ''}
-    ${read ? `static loadAll = createAction('[${upperCaseName}] Load All Data');
+    `
+        : ""
+    }
+    ${
+      params.read
+        ? `static loadAll = createAction('[${upperCaseName}] Load All Data');
 
     static loaded = createAction('[${upperCaseName}] All Data Loaded', props<{ data: any }>());
-    ` : ''}
-    ${update ? `static update${upperCaseName} = createAction('[${upperCaseName}] Update ${upperCaseName}', props<{ data: any , id: any}>());
+    `
+        : ""
+    }
+    ${
+      params.update
+        ? `static update${upperCaseName} = createAction('[${upperCaseName}] Update ${upperCaseName}', props<{ data: any , id: any}>());
 
     static ${lowerCaseName}Updated = createAction('[${upperCaseName}] ${upperCaseName} Updated', props<{ data: any }>());
-    ` : ''}
-    ${delet ? `static delete${upperCaseName} = createAction('[${upperCaseName}] Delete ${upperCaseName}', props<{ id: any}>());
+    `
+        : ""
+    }
+    ${
+      params.delete
+        ? `static delete${upperCaseName} = createAction('[${upperCaseName}] Delete ${upperCaseName}', props<{ id: any}>());
 
     static ${lowerCaseName}Deleted = createAction('[${upperCaseName}] ${upperCaseName} Deleted', props<{ data: any }>());
-    ` : ''}
+    `
+        : ""
+    }
     static error = createAction('[${upperCaseName}] Error Occurred', props<{ reason: any }>());
 }
 `;
 
-  fs.writeFileSync(`./${filePath}/${input}.actions.ts`, actions);
-  console.log('Actions File Created!');
-
+  io.createFile(actions, "actions");
 
   let entity = `import { createEntityAdapter, EntityAdapter, EntityState } from '@ngrx/entity';
 
@@ -124,20 +86,21 @@ export interface ${lowerCaseName}PartialState {
     [${featureKey}]: "${lowerCaseName}"
 }`;
 
-  fs.writeFileSync(`./${filePath}/${input}.entity.ts`, entity);
-  console.log('Entity File Created!');
+  io.createFile(entity, "entity");
 
   let effects = `import { Injectable } from '@angular/core';
 import { Actions, createEffect, ofType } from '@ngrx/effects';
 import { catchError, map, mergeMap } from 'rxjs/operators';
 import { of } from 'rxjs';
-import { ${upperCaseName}Actions } from './${input}.actions';
-import { ${upperCaseName}Service } from './${input}.service';
+import { ${upperCaseName}Actions } from './${params.input}.actions';
+import { ${upperCaseName}Service } from './${params.input}.service';
 
 @Injectable()
 export class ${upperCaseName}Effect {
 
-    ${read ? `loadAll$ = createEffect(() =>
+    ${
+      params.read
+        ? `loadAll$ = createEffect(() =>
     this.action$.pipe(
       ofType(${upperCaseName}Actions.loadAll),
       mergeMap((action) =>
@@ -149,8 +112,12 @@ export class ${upperCaseName}Effect {
         )
       )
     ));
-    `: ''}
-    ${create ? `addNew$ = createEffect(() =>
+    `
+        : ""
+    }
+    ${
+      params.create
+        ? `addNew$ = createEffect(() =>
     this.action$.pipe(
       ofType(${upperCaseName}Actions.addNew${upperCaseName}),
       mergeMap((action) =>
@@ -162,8 +129,12 @@ export class ${upperCaseName}Effect {
         )
       )
     ));
-    `: ''}
-    ${update ? `update$ = createEffect(() =>
+    `
+        : ""
+    }
+    ${
+      params.update
+        ? `update$ = createEffect(() =>
     this.action$.pipe(
       ofType(${upperCaseName}Actions.update${upperCaseName}),
       mergeMap((action) =>
@@ -175,8 +146,12 @@ export class ${upperCaseName}Effect {
         )
       )
     ));
-    `: ''}
-    ${delet ? `delete$ = createEffect(() =>
+    `
+        : ""
+    }
+    ${
+      params.delete
+        ? `delete$ = createEffect(() =>
     this.action$.pipe(
       ofType(${upperCaseName}Actions.delete${upperCaseName}),
       mergeMap((action) =>
@@ -187,7 +162,9 @@ export class ${upperCaseName}Effect {
           catchError((error) => of(${upperCaseName}Actions.error({ reason: error })))
         )
       )
-    ));`: ''}
+    ));`
+        : ""
+    }
 
     constructor(
         private action$: Actions,
@@ -197,16 +174,19 @@ export class ${upperCaseName}Effect {
 }
 `;
 
-  fs.writeFileSync(`./${filePath}/${input}.effects.ts`, effects);
-  console.log('Effects File Created!');
+  io.createFile(effects, "effects");
 
   let reducer = `import { Action, createReducer, on } from '@ngrx/store';
-import { ${upperCaseName}Actions } from './${input}.actions';
-import { ${lowerCaseName}Adapter, initialState, ${lowerCaseName}State, ${lowerCaseName}PartialState } from './${input}.entity';
+import { ${upperCaseName}Actions } from './${params.input}.actions';
+import { ${lowerCaseName}Adapter, initialState, ${lowerCaseName}State, ${lowerCaseName}PartialState } from './${
+    params.input
+  }.entity';
 
 export class ${upperCaseName}Reducer {
     static _reducer = createReducer(initialState,
-        ${read ? `on(${upperCaseName}Actions.loadAll, (state) => ({
+        ${
+          params.read
+            ? `on(${upperCaseName}Actions.loadAll, (state) => ({
             ...state,
             loaded: false,
             message: null,
@@ -223,7 +203,11 @@ export class ${upperCaseName}Reducer {
             error: null,
             submitted: false
         })),
-        `: ''}${create ? `on(${upperCaseName}Actions.addNew${upperCaseName}, (state) => ({
+        `
+            : ""
+        }${
+    params.create
+      ? `on(${upperCaseName}Actions.addNew${upperCaseName}, (state) => ({
             ...state,
             loaded: false,
             message: null,
@@ -238,7 +222,11 @@ export class ${upperCaseName}Reducer {
             statistics: null,
             error: null,
             submitted: false
-        })),`: ''}${update ? `on(${upperCaseName}Actions.update${upperCaseName}, (state) => ({
+        })),`
+      : ""
+  }${
+    params.update
+      ? `on(${upperCaseName}Actions.update${upperCaseName}, (state) => ({
             ...state,
             loaded: false,
             message: null,
@@ -253,7 +241,11 @@ export class ${upperCaseName}Reducer {
             statistics: null,
             error: null,
             submitted: true
-        })),`: ''}${delet ? `on(${upperCaseName}Actions.delete${upperCaseName}, (state) => ({
+        })),`
+      : ""
+  }${
+    params.delete
+      ? `on(${upperCaseName}Actions.delete${upperCaseName}, (state) => ({
             ...state,
             loaded: false,
             message: null,
@@ -268,7 +260,9 @@ export class ${upperCaseName}Reducer {
             statistics: null,
             error: null,
             submitted: true
-        })),`: ''}
+        })),`
+      : ""
+  }
         on(${upperCaseName}Actions.error, (state, { reason }) => ({
           ...state,
           error: reason,
@@ -282,11 +276,10 @@ export class ${upperCaseName}Reducer {
 }
 `;
 
-  fs.writeFileSync(`./${filePath}/${input}.reducer.ts`, reducer);
-  console.log('Reducer File Created!');
+  io.createFile(reducer, "reducer");
 
   let selectors = `import { createFeatureSelector, createSelector } from "@ngrx/store";
-import { ${featureKey}, ${lowerCaseName}State, ${lowerCaseName}Adapter } from "./${input}.entity";
+import { ${featureKey}, ${lowerCaseName}State, ${lowerCaseName}Adapter } from "./${params.input}.entity";
 const { selectAll } = ${lowerCaseName}Adapter.getSelectors();
 
 export class ${upperCaseName}Selectors {
@@ -305,15 +298,14 @@ export class ${upperCaseName}Selectors {
     static submitted = createSelector(${upperCaseName}Selectors.featureSelector, (state) => state.submitted);
 }`;
 
-  fs.writeFileSync(`./${filePath}/${input}.selectors.ts`, selectors);
-  console.log('Selectors File Created!');
+  io.createFile(selectors, "selectors");
 
   let service = `import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 import { environment } from '@environments/environment';
 import { HttpClient } from "@angular/common/http";
 
-import { ${featureKey} } from "./${input}.entity";
+import { ${featureKey} } from "./${params.input}.entity";
 @Injectable()
 export class ${upperCaseName}Service {
 
@@ -336,27 +328,28 @@ export class ${upperCaseName}Service {
 
   update(data, id: number): Observable<any> {
     return this.http.post<any>(
-      environment.baseApiUrl + ${'`postPath/${id}/update`'},
+      environment.baseApiUrl + ${"`postPath/${id}/update`"},
       data
     );
   }
 
   delete(id):Observable<any>{
     return this.http.post<any>(
-        environment.baseApiUrl + ${'`postPath/${id}/delete`'},{});
+        environment.baseApiUrl + ${"`postPath/${id}/delete`"},{});
   }
 }
 `;
 
-  fs.writeFileSync(`./${filePath}/${input}.service.ts`, service);
-  console.log('Service File Created!');
+  io.createFile(service, "service");
 
-  if (facade) {
+  if (params.facade) {
     let facade = `import { Injectable } from '@angular/core';
 import { select, Store } from '@ngrx/store';
-import { ${upperCaseName}Actions } from './${input}.actions';
-import { ${lowerCaseName}PartialState , ${featureKey} } from './${input}.entity';
-import { ${upperCaseName}Selectors } from './${input}.selectors';
+import { ${upperCaseName}Actions } from './${params.input}.actions';
+import { ${lowerCaseName}PartialState , ${featureKey} } from './${
+      params.input
+    }.entity';
+import { ${upperCaseName}Selectors } from './${params.input}.selectors';
 
 @Injectable()
 export class ${upperCaseName}Facade {
@@ -380,36 +373,51 @@ export class ${upperCaseName}Facade {
         this.loadAll();
     }
 
-    ${read ? `loadAll() {
+    ${
+      params.read
+        ? `loadAll() {
         this.store.dispatch(${upperCaseName}Actions.loadAll());
     }
-    `: ''}
-    ${update ? `update(id:any,data:any) {
+    `
+        : ""
+    }
+    ${
+      params.update
+        ? `update(id:any,data:any) {
         this.store.dispatch(${upperCaseName}Actions.update${upperCaseName}({id,data}));
     }
-    `: ''}
-    ${create ? `addNew(data:any) {
+    `
+        : ""
+    }
+    ${
+      params.create
+        ? `addNew(data:any) {
         this.store.dispatch(${upperCaseName}Actions.addNew${upperCaseName}({data}));
     }
-    `: ''}
-    ${delet ? `delete(id:any) {
+    `
+        : ""
+    }
+    ${
+      params.delete
+        ? `delete(id:any) {
         this.store.dispatch(${upperCaseName}Actions.delete${upperCaseName}({id}));
     }
-    `: ''}
-}
     `
+        : ""
+    }
+}
+    `;
 
-    fs.writeFileSync(`./${filePath}/${input}.facade.ts`, facade);
-    console.log('Facade File Created!');
+    io.createFile(facade, "facade");
 
     let module = `import { NgModule } from '@angular/core';
 import { EffectsModule } from '@ngrx/effects';
 import { StoreModule } from '@ngrx/store';
-import { ${upperCaseName}Effect } from './${input}.effects';
-import { ${featureKey} } from './${input}.entity';
-import { ${upperCaseName}Service } from './${input}.service';
-import { ${upperCaseName}Facade } from './${input}.facade';
-import { ${upperCaseName}Reducer } from './${input}.reducer';
+import { ${upperCaseName}Effect } from './${params.input}.effects';
+import { ${featureKey} } from './${params.input}.entity';
+import { ${upperCaseName}Service } from './${params.input}.service';
+import { ${upperCaseName}Facade } from './${params.input}.facade';
+import { ${upperCaseName}Reducer } from './${params.input}.reducer';
 import { CommonModule } from "@angular/common";
 
 @NgModule({
@@ -425,17 +433,14 @@ import { CommonModule } from "@angular/common";
 })
 export class ${upperCaseName}StateModule {}`;
 
-    fs.writeFileSync(`./${filePath}/${input}-state.module.ts`, module);
-    console.log('Module File Created!');
+    io.createFile(module, "module");
 
+    let index = `export { ${upperCaseName}Facade } from './${params.input}.facade';
+export { ${upperCaseName}StateModule } from './${params.input}-state.module';
+export { ${upperCaseName}Service } from './${params.input}.service';
+`;
 
-    let index = `export { ${upperCaseName}Facade } from './${input}.facade';
-export { ${upperCaseName}StateModule } from './${input}-state.module';
-export { ${upperCaseName}Service } from './${input}.service';
-`
-
-    fs.writeFileSync(`./${filePath}/index.ts`, index);
-    console.log('Index File Created!');
+    io.createFile(index, "index");
   }
 }
 
